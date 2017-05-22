@@ -9,18 +9,7 @@ This is a RS485 enabled TSYS01 based temperature probe.
 Wiring:
 
 Front
- --------------
-|Gnd  B  A  VCC|
-|			         |
-|			         |
-|			         |
-|	  RST        |
-|			         |
-|              |
-|MOSI  MISO SCK|
-|	             |
-|			         |
- --------------
+
  
  
  Step 1: Connect wires to AVR programming, default is USBtiny
