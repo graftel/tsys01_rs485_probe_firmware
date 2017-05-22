@@ -22,20 +22,25 @@
 #define TWI_ADR_BITS  1       // Bit position for LSB of the slave address bits in the init byte.
 #define TWI_NACK_BIT  0       // Bit position for (N)ACK bit.
 
-#define DEFAULT_ADDR "100000"
+#define DEFAULT_ADDR "02A001"
 #define DEFAULT_CAL_A 0.0f
 #define DEFAULT_CAL_B 1.0f
 #define DEFAULT_CAL_C 0.0f
+#define DEFAULT_SETTING "100000"
 
-#define EEPROM_INIT_STATUS_BYTE 0x00
-#define EEPROM_ADDR_START_BYTE  0x01
-#define EEPROM_CAL_START_BYTE   0x07
+#define EEPROM_INIT_STATUS_BYTE 	0x00
+#define EEPROM_ADDR_START_BYTE  	0x01
+#define EEPROM_CAL_START_BYTE   	0x07
+#define EEPROM_SETTING_START_BYTE   0x13
 
 uint8_t coefficent_MSB[5];
 uint8_t coefficent_LSB[5];
-char addr[6];
+char addr[6],setting[6];
 uint8_t data_buf[16];
 uint8_t write_enabled = 0;
+int check_sum_enable = 0;
+int delay = 0;
+int data_size = 0;
 void init_i2c()
 {
 	DDR_USI  |= (1 << PORT_USI_SDA) | (1 << PORT_USI_SCL);
@@ -160,6 +165,14 @@ void init_setup()
 		EEPROM_write(EEPROM_ADDR_START_BYTE + i, DEFAULT_ADDR[i]);
 	}
 	
+	for(i = 0; i < 6; i++)
+	{
+		setting[i] = DEFAULT_SETTING[i];
+		EEPROM_write(EEPROM_SETTING_START_BYTE + i, DEFAULT_SETTING[i]);
+	}
+	check_sum_enable = DEFAULT_SETTING[0] - 0x30;
+	delay = DEFAULT_SETTING[1] - 0x30;
+	
 	for(i = 0; i < sizeof(float); i++)
 	{
 		memset(tmp,0,sizeof(float));
@@ -180,6 +193,8 @@ void init_setup()
 		memcpy(tmp,&cal_c,sizeof(float));
 		EEPROM_write(EEPROM_CAL_START_BYTE + 2 * sizeof(float) + i, tmp[i]);
 	}
+	
+	
 
 }
 
@@ -189,7 +204,10 @@ void init_all()
 	for(i = 0; i < 6; i++)
 	{
 		addr[i] = EEPROM_read(EEPROM_ADDR_START_BYTE + i);
+		setting[i] = EEPROM_read(EEPROM_SETTING_START_BYTE + i);
 	}
+	check_sum_enable = setting[0] - 0x30;
+	delay = setting[1] - 0x30;
 }
 
 int
@@ -208,13 +226,13 @@ main()
 	}
 
 	init_all();
-	
 	uint8_t rev = 0x00;
 	int n = 0;
 	char tmp[3];
 	char tmp_data[3];
 	char recv[MAX_BUFFER_SIZE];
-	
+	int send_enable = 0;
+	int send_size = 0;
 	init_tsys01();
 	
 	while(1){
@@ -243,32 +261,31 @@ main()
 					    recv[8] == 'D' &&
 						n == 10)
 					{
+						data_size = 6;
 						write_enabled = 0;
 						recv[9] = '=';
 						Read_Temp(tmp_data);
 						
 						uint8_t m = 0;
-						
 						for(m = 0; m < 3; m++)
 						{
 							memset(tmp,0,sizeof(tmp));
 							GetHexString(tmp_data[m],tmp);
 							recv[10 + m * 2] = tmp[0];
 							recv[11 + m * 2] = tmp[1];
-						}					
-						recv[16] = 0x0d;
-						n = 17;
-						printRS485Bytes(recv, n);
+						}
+						send_size = n + data_size;
+						send_enable = 1;
 					}
 					
 					if (recv[7] == 'R' && 
 					    recv[8] == 'C' &&
-						(recv[9] == 'A' || recv[9] == 'B') || recv[9] == 'C' &&
+						(recv[9] == 'A' || recv[9] == 'B' || recv[9] == 'C') &&
 						n == 11)
 					{
 						write_enabled = 0;
 						recv[10] = '=';
-						
+						data_size = 8;
 						
 						uint8_t m = 0;
 						
@@ -290,10 +307,9 @@ main()
 							GetHexString(EEPROM_read(EEPROM_CAL_START_BYTE + add_bytes + m),tmp);
 							recv[11 + m * 2] = tmp[0];
 							recv[12 + m * 2] = tmp[1];
-						}			
-						recv[19] = 0x0d;
-						n = 20;
-						printRS485Bytes(recv, n);
+						}
+						send_enable = 1;
+						send_size = n + data_size;
 					}
 					
 					if (recv[7] == 'S' && 
@@ -326,33 +342,32 @@ main()
 							tmp[1] = recv[12 + m * 2];
 							EEPROM_write(EEPROM_CAL_START_BYTE + add_bytes + m, GetByteFromString(tmp));
 						}			
-						printRS485Bytes(recv, n);
+						send_enable = 1;
+						send_size = n - 1;
 					}
 					
 					if (recv[7] == 'R' && 
 					    recv[8] == 'E' &&
-						n == 10)
+						(recv[9] <= '4' && recv[9] >= '0') &&
+						n == 11)
 					{
 						write_enabled = 0;
-						recv[9] = '=';
+						recv[10] = '=';
 						Read_CalData();
+						data_size = 4;
+						uint8_t m = recv[9] - 0x30;
 						
-						uint8_t m = 0;
-						
-						for(m = 0; m < 5; m++)
-						{
-							memset(tmp,0,sizeof(tmp));
-							GetHexString(coefficent_MSB[m],tmp);
-							recv[10 + m * 4] = tmp[0];
-							recv[11 + m * 4] = tmp[1];
-							memset(tmp,0,sizeof(tmp));
-							GetHexString(coefficent_LSB[m],tmp);
-							recv[12 + m * 4] = tmp[0];
-							recv[13 + m * 4] = tmp[1];
-						}					
-						recv[30] = 0x0d;
-						n = 31;
-						printRS485Bytes(recv, n);
+						memset(tmp,0,sizeof(tmp));
+						GetHexString(coefficent_MSB[m],tmp);
+						recv[11] = tmp[0];
+						recv[12] = tmp[1];
+						memset(tmp,0,sizeof(tmp));
+						GetHexString(coefficent_LSB[m],tmp);
+						recv[13] = tmp[0];
+						recv[14] = tmp[1];
+											
+						send_enable = 1;
+						send_size = n + data_size;
 					}
 					
 					if (recv[7] == 'W' && 
@@ -360,7 +375,8 @@ main()
 						n == 10)
 					{
 						write_enabled = 1;
-						printRS485Bytes(recv, n);
+						send_enable = 1;
+						send_size = n - 1;
 					}
 					
 					if (recv[7] == 'S' && 
@@ -368,6 +384,61 @@ main()
 						recv[9] == '=' &&
 						n == 17 &&
 						write_enabled == 1)
+					{
+						write_enabled = 0;
+						uint8_t n1 = 0;
+						uint8_t n2 = 1;
+						for(n1 = 0; n1 < 6; n1++)
+						{
+							if (recv[10 + n1] < 0x30 || 
+								(recv[10 + n1] > 0x39 && recv[10 + n1] < 0x41) ||
+								recv[10 + n1] > 0x5A)
+							{
+								n2 = 0;
+								break;
+							}
+						}
+						if (n2 == 1)
+						{
+							
+							for(n1 = 0; n1 < 6; n1++)
+							{
+								addr[n1] = recv[10 + n1];
+								EEPROM_write(EEPROM_ADDR_START_BYTE + n1, recv[10 + n1]);
+							}
+							send_enable = 1;
+							send_size = n - 1;
+						}
+						
+						
+					}
+					if (recv[7] == 'R' && 
+					    recv[8] == 'S' &&
+						n == 10)
+					{
+						write_enabled = 0;
+						data_size = 6;
+						recv[9] = '=';
+						uint8_t n1 = 0;
+
+							
+						for(n1 = 0; n1 < data_size; n1++)
+						{
+							setting[n1] = EEPROM_read(EEPROM_SETTING_START_BYTE + n1);
+							recv[10 + n1] = setting[n1];
+							
+						}
+						
+							send_enable = 1;
+							send_size = n +	data_size;
+						
+						
+					}
+					if (recv[7] == 'S' && 
+					    recv[8] == 'S' &&
+						recv[9] == '=' &&
+			      write_enabled == 1 &&
+					          n == 17)
 					{
 						write_enabled = 0;
 						uint8_t n1 = 0;
@@ -385,14 +456,34 @@ main()
 							
 							for(n1 = 0; n1 < 6; n1++)
 							{
-								addr[n1] = recv[10 + n1];
-								EEPROM_write(0x00 + n1, recv[10 + n1]);
+								setting[n1] = recv[10 + n1];
+								EEPROM_write(EEPROM_SETTING_START_BYTE + n1, recv[10 + n1]);
 							}
-							printRS485Bytes(recv, n);
+							send_enable = 1;
+							send_size = n - 1;
+							check_sum_enable = setting[0] - 0x30;
+							delay = setting[1] - 0x30;
 						}
 						
 						
 					}
+					
+					
+					if (send_enable == 1)
+					{
+						send_enable = 0;
+						if (delay != 0)
+						{
+							uint8_t n3 = 0;
+							for(n = 0; n < delay; n++)
+							{
+								_delay_us(1040);
+							}
+						}
+						printRS485Bytes(recv, send_size, check_sum_enable);
+					}
+					
+					
 				}
 			
 		//	_delay_us(1000);

@@ -187,6 +187,12 @@ set_fast_fuse: LFUSE = 0xE2
 set_fast_fuse: FUSE_STRING = -U lfuse:w:$(LFUSE):m 
 set_fast_fuse: fuses
 
+## Set the fuse byte for full-speed mode
+## Note: can also be set in firmware for modern chips
+set_xtal_fuse: LFUSE = 0x7D
+set_xtal_fuse: FUSE_STRING = -U lfuse:w:$(LFUSE):m 
+set_xtal_fuse: fuses
+
 ## Set the EESAVE fuse byte to preserve EEPROM across flashes
 set_eeprom_save_fuse: HFUSE = 0xD7
 set_eeprom_save_fuse: FUSE_STRING = -U hfuse:w:$(HFUSE):m
