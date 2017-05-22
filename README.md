@@ -8,7 +8,7 @@ This is a RS485 enabled TSYS01 based temperature probe.
 
 Wiring:
 
-![Alt text](/Temp_Probe/wiring.png=126x537)
+![Alt text](/Temp_Probe/wiring.png =126x537)
 
 
  
