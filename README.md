@@ -33,7 +33,7 @@ Wiring:
 		Check sum is calculated by add all hex together and & 0xff.
 		Example:
 		
-		# = 0x23
+		/# = 0x23
 		2 = 0x32
 		0 = 0x30
 		0 = 0x30
