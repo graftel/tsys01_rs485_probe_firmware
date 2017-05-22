@@ -8,10 +8,12 @@ This is a RS485 enabled TSYS01 based temperature probe.
 
 Wiring:
 
-![Alt text](/Temp_Probe/wiring.png =126x537)
+![](https://gyazo.com/eb5c5741b6a9a16c692170a41a49c858.png | width=100)
 
 
- 
+
+
+ /Temp_Probe/wiring.png
  
  Step 1: Connect wires to AVR programming, default is USBtiny
  
