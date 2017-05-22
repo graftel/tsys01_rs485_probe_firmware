@@ -8,7 +8,7 @@ This is a RS485 enabled TSYS01 based temperature probe.
 
 Wiring:
 
-<img src="https://raw.githubusercontent.com/graftel/tsys01_rs485_probe_firmware/master/Temp_Probe/wiring.png" width="200" height="400" />
+<img src="https://raw.githubusercontent.com/graftel/tsys01_rs485_probe_firmware/master/Temp_Probe/wiring.png" width="126" height="537" />
 
 
 
