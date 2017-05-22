@@ -87,15 +87,36 @@ void printRS485String(const char myString[]) {
   
 }
 
-void printRS485Bytes(uint8_t myBytes[], uint8_t len)
+void printRS485Bytes(uint8_t myBytes[], uint8_t len, int check_sum_enable)
 {
 	uint8_t i = 0;
+	int checksum = 0;
+	char tmp[2];
+	
 	init_RS485();
-
-	for(i = 0; i < len; i++)
+	
+	if (check_sum_enable == 1)
 	{
-		transmitByte(myBytes[i]);
+		for(i = 0; i < len; i++)
+		{
+			transmitByte(myBytes[i]);
+			checksum += myBytes[i];
+		}
+		checksum = checksum & 0xff;
+		GetHexString((uint8_t)checksum, tmp);
+		transmitByte(tmp[0]);
+		transmitByte(tmp[1]);
 	}
+	else{
+		for(i = 0; i < len; i++)
+		{
+			transmitByte(myBytes[i]);
+		}
+	}
+
+	transmitByte(0x0d);
+	
+	
 	
 	end_RS485();
 	
