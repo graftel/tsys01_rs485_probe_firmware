@@ -43,3 +43,7 @@ void printHexByte(uint8_t byte);
 uint8_t getNumber(void);
 /* takes in up to three ascii digits,
  converts them to a byte when press enter */
+ void GetHexString(uint8_t byte, char *out);
+ uint8_t GetByteFromString(char *in);
+ void printRS485Bytes(uint8_t myBytes[], uint8_t len, int check_sum_enable);
+ void printRS485String(const char myString[]);
